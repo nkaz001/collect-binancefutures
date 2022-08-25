@@ -34,7 +34,7 @@ if __name__ == '__main__':
                     asks = data['a']
                     rows += [[1, local_timestamp, int(transaction_time) * 1000, 1, float(bid[0]), float(bid[1])]
                              for bid in bids]
-                    rows += [[1, local_timestamp, int(transaction_time) * 1000, 1, float(ask[0]), float(ask[1])]
+                    rows += [[1, local_timestamp, int(transaction_time) * 1000, -1, float(ask[0]), float(ask[1])]
                              for ask in asks]
             else:
                 # snapshot
@@ -48,9 +48,9 @@ if __name__ == '__main__':
                 rows.append([3, local_timestamp, int(transaction_time) * 1000, 1, bid_clear_upto, 0])
                 rows.append([3, local_timestamp, int(transaction_time) * 1000, -1, ask_clear_upto, 0])
                 # insert the snapshot.
-                rows += [[1, local_timestamp, int(transaction_time) * 1000, 1, float(bid[0]), float(bid[1])]
+                rows += [[4, local_timestamp, int(transaction_time) * 1000, 1, float(bid[0]), float(bid[1])]
                          for bid in bids]
-                rows += [[1, local_timestamp, int(transaction_time) * 1000, 1, float(ask[0]), float(ask[1])]
+                rows += [[4, local_timestamp, int(transaction_time) * 1000, -1, float(ask[0]), float(ask[1])]
                          for ask in asks]
     df = pd.DataFrame(rows, columns=['event', 'exch_timestamp', 'local_timestamp', 'side', 'price', 'qty'])
     df.to_pickle(dst_file, compression='gzip')
