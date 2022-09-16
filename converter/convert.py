@@ -59,6 +59,25 @@ if __name__ == '__main__':
                                 del ask_depth[ask[0]]
                         else:
                             ask_depth[ask[0]] = ask[1]
+                elif evt == 'markPriceUpdate':
+                    # event_time = data['E']
+                    transaction_time = data['T']
+                    index = data['i']
+                    mark_price = data['p']
+                    # est_settle_price = data['P']
+                    funding_rate = data['r']
+                    rows.append([100, local_timestamp, int(transaction_time) * 1000, 0, float(index), 0])
+                    rows.append([101, local_timestamp, int(transaction_time) * 1000, 0, float(mark_price), 0])
+                    rows.append([5, local_timestamp, int(transaction_time) * 1000, 0, float(funding_rate), 0])
+                # elif evt == 'bookTicker':
+                #     # event_time = data['E']
+                #     transaction_time = data['T']
+                #     bid_price = data['b']
+                #     bid_qty = data['B']
+                #     ask_price = data['a']
+                #     ask_qty = data['A']
+                #     rows.append([6, local_timestamp, int(transaction_time) * 1000, 1, float(bid_price), float(bid_qty)])
+                #     rows.append([6, local_timestamp, int(transaction_time) * 1000, -1, float(ask_price), float(ask_qty)])
             else:
                 # snapshot
                 # event_time = msg['E']

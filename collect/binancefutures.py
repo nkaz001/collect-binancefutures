@@ -48,6 +48,12 @@ class BinanceFutures:
         elif tokens[1] == 'trade':
             symbol = tokens[0]
             self.queue.put((symbol, timestamp, raw_message))
+        elif tokens[1] == 'bookTicker':
+            symbol = tokens[0]
+            self.queue.put((symbol, timestamp, raw_message))
+        elif tokens[1] == 'markPrice':
+            symbol = tokens[0]
+            self.queue.put((symbol, timestamp, raw_message))
 
     async def __keep_alive(self):
         while not self.closed:
@@ -147,9 +153,10 @@ class BinanceFutures:
 
     async def connect(self):
         try:
-            # stream = '/'.join(['%s@depth@0ms/%s@aggTrade' % (symbol, symbol) for symbol in self.symbols])
-            # trade data in 'trade' stream is received a little bit earlier than trade data in 'aggTrade' stream.
-            stream = '/'.join(['%s@depth@0ms/%s@trade' % (symbol, symbol) for symbol in self.symbols])
+            stream = '/'.join(['%s@depth@0ms/%s@trade/%s@markPrice@1s' % (symbol, symbol, symbol)
+                               for symbol in self.symbols])
+            # stream = '/'.join(['%s@depth@0ms/%s@trade/%s@markPrice@1s/%s@bookTicker' % (symbol, symbol, symbol, symbol)
+            #                    for symbol in self.symbols])
             url = 'wss://fstream.binance.com/stream?streams=%s' % stream
             async with ClientSession() as session:
                 async with session.ws_connect(url) as ws:
