@@ -9,7 +9,7 @@ from aiohttp import ClientSession, WSMsgType
 from yarl import URL
 
 
-class BinanceFutures:
+class BinanceFuturesCoin:
     def __init__(self, queue, symbols, timeout=7):
         self.symbols = symbols
         self.client = aiohttp.ClientSession(headers={ 'Content-Type': 'application/json' })
@@ -101,7 +101,7 @@ class BinanceFutures:
 
         # Make the request
         try:
-            url = URL('https://fapi.binance.com/fapi%s?%s' % (path, query), encoded=True)
+            url = URL('https://dapi.binance.com/dapi%s?%s' % (path, query), encoded=True)
             logging.info("sending req to %s: %s" % (url, json.dumps(query or query or '')))
             response = await self.client.request(verb, url, timeout=timeout)
             # Make non-200s throw
@@ -158,7 +158,7 @@ class BinanceFutures:
         try:
             stream = '/'.join(['%s@depth@0ms/%s@trade/%s@markPrice@1s/%s@bookTicker' % (symbol, symbol, symbol, symbol)
                                for symbol in self.symbols])
-            url = 'wss://fstream.binance.com/stream?streams=%s' % stream
+            url = 'wss://dstream.binance.com/stream?streams=%s' % stream
             async with ClientSession() as session:
                 async with session.ws_connect(url) as ws:
                     logging.info('WS Connected.')

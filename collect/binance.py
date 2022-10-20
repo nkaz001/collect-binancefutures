@@ -9,7 +9,7 @@ from aiohttp import ClientSession, WSMsgType
 from yarl import URL
 
 
-class BinanceFutures:
+class Binance:
     def __init__(self, queue, symbols, timeout=7):
         self.symbols = symbols
         self.client = aiohttp.ClientSession(headers={ 'Content-Type': 'application/json' })
@@ -30,12 +30,12 @@ class BinanceFutures:
             symbol = tokens[0]
             data = message['data']
             u = data['u']
-            pu = data['pu']
+            U = data['U']
             prev_u = self.prev_u.get(symbol)
-            if prev_u is None or pu != prev_u:
+            if prev_u is None or U != prev_u + 1:
                 pending_messages = self.pending_messages.get(symbol)
                 if pending_messages is None:
-                    logging.warning('Mismatch on the book. prev_update_id=%s, pu=%s' % (prev_u, pu))
+                    logging.warning('Mismatch on the book. prev_update_id=%s, U=%s' % (prev_u, U))
                     asyncio.create_task(self.__get_marketdepth_snapshot(symbol))
                     self.pending_messages[symbol] = pending_messages = []
                 pending_messages.append((message, raw_message))
@@ -83,7 +83,7 @@ class BinanceFutures:
 
         if query is None:
             query = {}
-        query['timestamp'] = str(int(time.time() * 1000) - 1000)
+        # query['timestamp'] = str(int(time.time() * 1000) - 1000)
         query = urllib.parse.urlencode(query)
         # query = query.replace('%27', '%22')
 
@@ -101,7 +101,7 @@ class BinanceFutures:
 
         # Make the request
         try:
-            url = URL('https://fapi.binance.com/fapi%s?%s' % (path, query), encoded=True)
+            url = URL('https://api.binance.com/api%s?%s' % (path, query), encoded=True)
             logging.info("sending req to %s: %s" % (url, json.dumps(query or query or '')))
             response = await self.client.request(verb, url, timeout=timeout)
             # Make non-200s throw
@@ -156,9 +156,9 @@ class BinanceFutures:
 
     async def connect(self):
         try:
-            stream = '/'.join(['%s@depth@0ms/%s@trade/%s@markPrice@1s/%s@bookTicker' % (symbol, symbol, symbol, symbol)
+            stream = '/'.join(['%s@depth@100ms/%s@trade/%s@bookTicker' % (symbol, symbol, symbol)
                                for symbol in self.symbols])
-            url = 'wss://fstream.binance.com/stream?streams=%s' % stream
+            url = 'wss://stream.binance.com:9443/stream?streams=%s' % stream
             async with ClientSession() as session:
                 async with session.ws_connect(url) as ws:
                     logging.info('WS Connected.')
@@ -193,7 +193,7 @@ class BinanceFutures:
         await asyncio.sleep(1)
 
     async def __get_marketdepth_snapshot(self, symbol):
-        data = await self.__curl(verb='GET', path='/v1/depth', query={'symbol': symbol, 'limit': 1000})
+        data = await self.__curl(verb='GET', path='/v3/depth', query={'symbol': symbol.upper(), 'limit': 1000})
         self.queue.put((symbol, time.time(), json.dumps(data)))
         lastUpdateId = data['lastUpdateId']
         self.prev_u[symbol] = None
@@ -207,13 +207,12 @@ class BinanceFutures:
                 data = message['data']
                 u = data['u']
                 U = data['U']
-                pu = data['pu']
-                # https://binance-docs.github.io/apidocs/futures/en/#how-to-manage-a-local-order-book-correctly
-                # The first processed event should have U <= lastUpdateId AND u >= lastUpdateId
-                if (u < lastUpdateId or U > lastUpdateId) and prev_u is None:
+                # https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams
+                # The first processed event should have U <= lastUpdateId + 1 AND u >= lastUpdateId + 1
+                if (u < lastUpdateId + 1 or U > lastUpdateId + 1) and prev_u is None:
                     continue
-                if prev_u is not None and pu != prev_u:
-                    logging.warning('UpdateId does not match. symbol=%s, prev_update_id=%d, pu=%d' % (symbol, prev_u, pu))
+                if prev_u is not None and U != prev_u + 1:
+                    logging.warning('UpdateId does not match. symbol=%s, prev_update_id=%d, U=%d' % (symbol, prev_u, U))
                 self.queue.put((symbol, timestamp, raw_message))
                 self.prev_u[symbol] = prev_u = u
             if prev_u is None:

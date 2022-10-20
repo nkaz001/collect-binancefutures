@@ -7,9 +7,19 @@ import sys
 from multiprocessing import Process, Queue
 
 from binancefutures import BinanceFutures
+from binancefuturescoin import BinanceFuturesCoin
+from binance import Binance
 
 queue = Queue()
-bf = BinanceFutures(queue, sys.argv[1].split(','))
+
+if sys.argv[1] == 'binancefutures':
+    stream = BinanceFutures(queue, sys.argv[2].split(','))
+elif sys.argv[1] == 'binance':
+    stream = Binance(queue, sys.argv[2].split(','))
+elif sys.argv[1] == 'binancefuturescoin':
+    stream = BinanceFuturesCoin(queue, sys.argv[2].split(','))
+else:
+    raise ValueError('unsupported exchange.')
 
 
 def writer_proc(queue, output):
@@ -27,14 +37,16 @@ def writer_proc(queue, output):
 
 
 def shutdown():
-    asyncio.create_task(bf.close())
+    asyncio.create_task(stream.close())
 
 
 async def main():
     logging.basicConfig(level=logging.DEBUG)
-    writer_p = Process(target=writer_proc, args=(queue, sys.argv[2],))
+    writer_p = Process(target=writer_proc, args=(queue, sys.argv[3],))
     writer_p.start()
-    await bf.connect()
+    while not stream.closed:
+        await stream.connect()
+        await asyncio.sleep(1)
     queue.put(None)
     writer_p.join()
 
