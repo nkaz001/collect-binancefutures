@@ -4,13 +4,25 @@ import sys
 import pandas as pd
 import json
 
+import gzip
+
 
 if __name__ == '__main__':
-    src_file = sys.argv[1]
-    filename = os.path.basename(os.path.splitext(src_file)[0])
-    dst_file = os.path.join(sys.argv[2], filename + '.pkl')
-    snapshot_dst_file = os.path.join(sys.argv[2], filename + '.snapshot.pkl')
-    snapshot_src_file = sys.argv[3] if len(sys.argv) == 4 else None
+    option = sys.argv[1]
+    src_file = sys.argv[2]
+    ext = os.path.splitext(src_file)[1]
+    if ext == '.gz':
+        filename = os.path.basename(os.path.splitext(os.path.splitext(src_file)[0])[0])
+        open_func = gzip.open
+    elif ext == '.dat':
+        filename = os.path.basename(os.path.splitext(src_file)[0])
+        open_func = open
+    else:
+        raise ValueError
+
+    dst_file = os.path.join(sys.argv[3], filename + '.pkl')
+    snapshot_dst_file = os.path.join(sys.argv[3], filename + '.snapshot.pkl')
+    snapshot_src_file = sys.argv[4] if len(sys.argv) == 5 else None
 
     bid_depth = {}
     ask_depth = {}
@@ -23,7 +35,7 @@ if __name__ == '__main__':
                 ask_depth[str(row['price'])] = str(row['qty'])
 
     rows = []
-    with open(src_file, 'r') as f:
+    with open_func(src_file, 'r') as f:
         while True:
             line = f.readline()
             if not line:
@@ -39,14 +51,14 @@ if __name__ == '__main__':
                     price = data['p']
                     qty = data['q']
                     side = -1 if data['m'] else 1  # trade initiator's side
-                    rows.append([2, local_timestamp, int(transaction_time) * 1000, side, float(price), float(qty)])
+                    rows.append([2, int(transaction_time) * 1000, local_timestamp, side, float(price), float(qty)])
                 elif evt == 'depthUpdate':
                     # event_time = data['E']
                     transaction_time = data['T']
                     bids = data['b']
                     asks = data['a']
-                    rows += [[1, local_timestamp, int(transaction_time) * 1000, 1, float(bid[0]), float(bid[1])] for bid in bids]
-                    rows += [[1, local_timestamp, int(transaction_time) * 1000, -1, float(ask[0]), float(ask[1])] for ask in asks]
+                    rows += [[1, int(transaction_time) * 1000, local_timestamp, 1, float(bid[0]), float(bid[1])] for bid in bids]
+                    rows += [[1, int(transaction_time) * 1000, local_timestamp, -1, float(ask[0]), float(ask[1])] for ask in asks]
                     for bid in bids:
                         if round(float(bid[1]) / 0.000001) == 0:
                             if bid[0] in bid_depth:
@@ -59,25 +71,25 @@ if __name__ == '__main__':
                                 del ask_depth[ask[0]]
                         else:
                             ask_depth[ask[0]] = ask[1]
-                elif evt == 'markPriceUpdate':
+                elif evt == 'markPriceUpdate' and option == 'full':
                     # event_time = data['E']
                     transaction_time = data['T']
                     index = data['i']
                     mark_price = data['p']
                     # est_settle_price = data['P']
                     funding_rate = data['r']
-                    rows.append([100, local_timestamp, int(transaction_time) * 1000, 0, float(index), 0])
-                    rows.append([101, local_timestamp, int(transaction_time) * 1000, 0, float(mark_price), 0])
-                    rows.append([102, local_timestamp, int(transaction_time) * 1000, 0, float(funding_rate), 0])
-                elif evt == 'bookTicker':
+                    rows.append([100, int(transaction_time) * 1000, local_timestamp, 0, float(index), 0])
+                    rows.append([101, int(transaction_time) * 1000, local_timestamp, 0, float(mark_price), 0])
+                    rows.append([102, int(transaction_time) * 1000, local_timestamp, 0, float(funding_rate), 0])
+                elif evt == 'bookTicker' and option == 'full':
                     # event_time = data['E']
                     transaction_time = data['T']
                     bid_price = data['b']
                     bid_qty = data['B']
                     ask_price = data['a']
                     ask_qty = data['A']
-                    rows.append([103, local_timestamp, int(transaction_time) * 1000, 1, float(bid_price), float(bid_qty)])
-                    rows.append([104, local_timestamp, int(transaction_time) * 1000, -1, float(ask_price), float(ask_qty)])
+                    rows.append([103, int(transaction_time) * 1000, local_timestamp, 1, float(bid_price), float(bid_qty)])
+                    rows.append([104, int(transaction_time) * 1000, local_timestamp, -1, float(ask_price), float(ask_qty)])
             else:
                 # snapshot
                 # event_time = msg['E']
@@ -87,8 +99,8 @@ if __name__ == '__main__':
                 bid_clear_upto = float(bids[-1][0])
                 ask_clear_upto = float(asks[-1][0])
                 # clear the existing market depth upto the prices in the snapshot.
-                rows.append([3, local_timestamp, int(transaction_time) * 1000, 1, bid_clear_upto, 0])
-                rows.append([3, local_timestamp, int(transaction_time) * 1000, -1, ask_clear_upto, 0])
+                rows.append([3, int(transaction_time) * 1000, local_timestamp, 1, bid_clear_upto, 0])
+                rows.append([3, int(transaction_time) * 1000, local_timestamp, -1, ask_clear_upto, 0])
                 for bid in list(bid_depth.keys()):
                     if float(bid) > float(bid_clear_upto) or bid == bids[-1][0]:
                         del bid_depth[bid]
@@ -96,8 +108,8 @@ if __name__ == '__main__':
                     if float(ask) < float(ask_clear_upto) or ask == asks[-1][0]:
                         del ask_depth[ask]
                 # insert the snapshot.
-                rows += [[4, local_timestamp, int(transaction_time) * 1000, 1, float(bid[0]), float(bid[1])] for bid in bids]
-                rows += [[4, local_timestamp, int(transaction_time) * 1000, -1, float(ask[0]), float(ask[1])] for ask in asks]
+                rows += [[4, int(transaction_time) * 1000, local_timestamp, 1, float(bid[0]), float(bid[1])] for bid in bids]
+                rows += [[4, int(transaction_time) * 1000, local_timestamp, -1, float(ask[0]), float(ask[1])] for ask in asks]
                 for bid in bids:
                     bid_depth[bid[0]] = bid[1]
                 for ask in asks:
@@ -106,9 +118,9 @@ if __name__ == '__main__':
     df.to_pickle(dst_file, compression='gzip')
 
     snapshot = []
-    snapshot += [[4, local_timestamp, int(transaction_time) * 1000, 1, float(bid), float(qty)]
+    snapshot += [[4, int(transaction_time) * 1000, local_timestamp, 1, float(bid), float(qty)]
                  for bid, qty in sorted(bid_depth.items(), key=lambda v: -float(v[0]))]
-    snapshot += [[4, local_timestamp, int(transaction_time) * 1000, -1, float(ask), float(qty)]
+    snapshot += [[4, int(transaction_time) * 1000, local_timestamp, -1, float(ask), float(qty)]
                  for ask, qty in sorted(ask_depth.items(), key=lambda v: float(v[0]))]
     snapshot_df = pd.DataFrame(snapshot, columns=['event', 'exch_timestamp', 'local_timestamp', 'side', 'price', 'qty'])
     snapshot_df.to_pickle(snapshot_dst_file, compression='gzip')

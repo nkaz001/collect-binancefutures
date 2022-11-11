@@ -23,5 +23,15 @@ Python3: run by `python3` command.
 pandas: `pip3 install pandas`
 
 ## Run
-`convert.sh [input file] [output path]`  
-example: `convert.sh /mnt/data/btcusdt_20220811.dat /mnt/data`
+`convert.sh [option] [input file] [output path] [optional: initial market depth snapshot]`  
+
+option:  
+`compact`: only market depth and trade streams    
+`full`: including mark price, funding, book ticker streams
+  
+example:  
+`convert.sh compact /mnt/data/btcusdt_20220811.dat /mnt/data`  
+or with the initial market depth snapshot  
+`convert.sh compact /mnt/data/btcusdt_20220811.dat /mnt/data /mnt/data/btcusdt_20220810.snapshot.pkl`
+  
+`/mnt/data/btcusdt_20220810.snapshot.pkl` is End-Of-Day market depth snapshot of 20220810 so it's initial market depth snapshot of 20220811.  
