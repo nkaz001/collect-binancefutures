@@ -6,6 +6,8 @@ use tracing::{error, info};
 use crate::file::Writer;
 
 mod binancefutures;
+mod bybit;
+mod error;
 mod file;
 
 #[derive(Parser, Debug)]
@@ -47,6 +49,19 @@ async fn main() -> Result<(), anyhow::Error> {
                 args.symbols,
                 writer_tx,
             ))
+        }
+        "bybit" => {
+            let topics = vec![
+                "orderbook.1.$symbol",
+                "orderbook.50.$symbol",
+                "orderbook.500.$symbol",
+                "publicTrade.$symbol",
+            ]
+            .iter()
+            .map(|topic| topic.to_string())
+            .collect();
+
+            tokio::spawn(bybit::run_collection(topics, args.symbols, writer_tx))
         }
         exchange => {
             return Err(anyhow!("{exchange} is not supported."));

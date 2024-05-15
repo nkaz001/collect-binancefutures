@@ -4,44 +4,41 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 pub use http::{fetch_depth_snapshot, fetch_symbol_list, keep_connection};
-use thiserror::Error;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tracing::{error, warn};
 
-#[derive(Error, Debug)]
-enum ErrorX {
-    #[error("no field")]
-    NoField,
-    #[error("type error")]
-    TypeError,
-}
+use crate::error::ConnectorError;
 
 fn handle(
     prev_u_map: &mut HashMap<String, i64>,
     writer_tx: &UnboundedSender<(DateTime<Utc>, String, String)>,
     recv_time: DateTime<Utc>,
     data: String,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), ConnectorError> {
     let j: serde_json::Value = serde_json::from_str(&data)?;
     if let Some(j_data) = j.get("data") {
-        if let Some(j_symbol) = j_data.as_object().ok_or(ErrorX::TypeError)?.get("s") {
-            let symbol = j_symbol.as_str().ok_or(ErrorX::TypeError)?;
+        if let Some(j_symbol) = j_data
+            .as_object()
+            .ok_or(ConnectorError::FormatError)?
+            .get("s")
+        {
+            let symbol = j_symbol.as_str().ok_or(ConnectorError::FormatError)?;
             let ev = j_data
                 .get("e")
-                .ok_or(ErrorX::NoField)?
+                .ok_or(ConnectorError::FormatError)?
                 .as_str()
-                .ok_or(ErrorX::TypeError)?;
+                .ok_or(ConnectorError::FormatError)?;
             if ev == "depthUpdate" {
                 let u = j_data
                     .get("u")
-                    .ok_or(ErrorX::NoField)?
+                    .ok_or(ConnectorError::FormatError)?
                     .as_i64()
-                    .ok_or(ErrorX::TypeError)?;
+                    .ok_or(ConnectorError::FormatError)?;
                 let pu = j_data
                     .get("pu")
-                    .ok_or(ErrorX::NoField)?
+                    .ok_or(ConnectorError::FormatError)?
                     .as_i64()
-                    .ok_or(ErrorX::TypeError)?;
+                    .ok_or(ConnectorError::FormatError)?;
                 let prev_u = prev_u_map.get(symbol);
                 if prev_u.is_none() || pu != *prev_u.unwrap() {
                     warn!(%symbol, "missing depth feed has been detected.");
