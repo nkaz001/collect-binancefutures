@@ -1,0 +1,33 @@
+{
+    "binance": {
+        "ws_url": "wss://stream.binance.com:9443/stream",
+        "api_url": "https://api.binance.com/api",
+        "streams": [
+            "@depth@100ms",
+            "@trade",
+            "@bookTicker"
+        ]
+    },
+    "binancefutures": {
+        "ws_url": "wss://fstream.binance.com/stream",
+        "api_url": "https://fapi.binance.com/fapi",
+        "streams": [
+            "@depth@0ms",
+            "@trade",
+            "@markPrice@1s",
+            "@bookTicker",
+            "@forceOrder@arr",
+            "@aggTrade"
+        ]
+    },
+    "binancefuturescoin": {
+        "ws_url": "wss://dstream.binance.com/stream",
+        "api_url": "https://dapi.binance.com/dapi",
+        "streams": [
+            "@depth@0ms",
+            "@trade",
+            "@markPrice@1s",
+            "@bookTicker"
+        ]
+    }
+}

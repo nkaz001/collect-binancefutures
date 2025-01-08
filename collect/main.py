@@ -24,12 +24,22 @@ else:
 
 def writer_proc(queue, output):
     while True:
+        # extracting the first element of the queue's data
         data = queue.get()
         if data is None:
             break
         symbol, timestamp, message = data
+        
+        # extracting the date from the timestamp
         date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y%m%d')
-        with open(os.path.join(output, '%s_%s.dat' % (symbol, date)), 'a') as f:
+        
+        # Create date directory if it doesn't exist
+        date_dir = os.path.join(output, date)
+        os.makedirs(date_dir, exist_ok=True)
+        
+        # Write to file in date directory
+        filepath = os.path.join(date_dir, f'{symbol}_{date}.dat')
+        with open(filepath, 'a') as f:
             f.write(str(int(timestamp * 1000000)))
             f.write(' ')
             f.write(message)

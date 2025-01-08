@@ -1,4 +1,6 @@
-# This project moved to https://github.com/nkaz001/hftbacktest/tree/master/collector
+# Original project is https://github.com/nkaz001/hftbacktest/tree/master/collector
+
+#This is a spinoff in order to have a simple subscriber in python
 
 # Binance feed collector
 ## Requirements

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 import urllib.parse
 
@@ -11,8 +12,10 @@ from yarl import URL
 
 class Binance:
     def __init__(self, queue, symbols, timeout=7):
+        with open(os.path.join(os.path.dirname(__file__), 'binance.json')) as f:
+            self.config = json.load(f)['binancefutures']
         self.symbols = symbols
-        self.client = aiohttp.ClientSession(headers={ 'Content-Type': 'application/json' })
+        self.client = None
         self.closed = False
         self.pending_messages = {}
         self.prev_u = {}
@@ -156,9 +159,13 @@ class Binance:
 
     async def connect(self):
         try:
-            stream = '/'.join(['%s@depth@100ms/%s@trade/%s@bookTicker' % (symbol, symbol, symbol)
-                               for symbol in self.symbols])
-            url = 'wss://stream.binance.com:9443/stream?streams=%s' % stream
+            if self.client is None:
+                self.client = aiohttp.ClientSession(headers={'Content-Type': 'application/json'})
+
+            stream = '/'.join([f"{symbol}{suffix}" 
+                             for symbol in self.symbols 
+                             for suffix in self.config['streams']])
+            url = f"{self.config['ws_url']}?streams={stream}"
             async with ClientSession() as session:
                 async with session.ws_connect(url) as ws:
                     logging.info('WS Connected.')
